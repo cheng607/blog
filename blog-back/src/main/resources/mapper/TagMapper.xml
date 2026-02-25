@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.example.blog.mapper.TagMapper">
+
+    <!-- 新增：查询标签列表并统计文章数量 -->
+    <select id="selectTagsWithArticleCount" resultType="com.example.blog.entity.Tag">
+        SELECT
+            t.id,
+            t.name,
+            t.description,
+            t.created_at,
+            COUNT(at.article_id) AS count  -- 统计关联的文章数量
+        FROM tag t
+                 LEFT JOIN article_tag at ON t.id = at.tag_id  -- 左连接确保无文章的标签也会被查询到
+        GROUP BY t.id  -- 按标签ID分组
+        ORDER BY t.created_at DESC;
+    </select>
+    <select id="selectByIdWithArticleCount" resultType="com.example.blog.entity.Tag">
+        SELECT
+            t.id,
+            t.name,
+            t.description,
+            t.created_at,
+            COUNT(at.article_id) AS count
+        FROM tag t
+            LEFT JOIN article_tag at ON t.id = at.tag_id
+        WHERE t.id = #{id}
+        GROUP BY t.id;
+    </select>
+</mapper>

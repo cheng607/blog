@@ -1,0 +1,48 @@
+/* @font-face {
+  font-family: 'JingNanBoBoHei-Bold-2';
+  src: url('./assets/fonts/JingNanBoBoHei-Bold-2.ttf');
+  font-style: normal;
+  font-display: swap;
+} */
+
+:root {
+  transition: background-color 0.3s, color 0.3s;
+}
+
+:root.light {
+  --bg-color: #f5f5f5;
+  --text-color: #333333;
+  --card-bg: #f5f5f5;
+  --border-color: #eeeeee;
+  --primary-color: #49B1F5;
+  --link-color: #4096ff;
+  --hover-bg: #f0f7ff;
+  --code-bg: #f5f5f5;
+  --code-text: #333;
+}
+
+/* 暗主题 */
+:root.dark {
+  --bg-color: #1a1a1a;
+  --text-color: #f0f0f0;
+  --card-bg: #2c2c2c;
+  --border-color: #333333;
+  --primary-color: #7FC8F8;
+  --link-color: #7FC8F8;
+  --hover-bg: #3a4b5c;
+  --code-bg: #2d2d2d;
+  --code-text: #e0e0e0;
+}
+
+body {
+  background-color: var(--bg-color);
+  color: var(--text-color);
+  margin: 0;
+  padding: 0;
+  /* font-family: 'JingNanBoBoHei-Bold-2', serif; */
+}
+
+.card {
+  background-color: var(--card-bg);
+  border: 1px solid var(--border-color);
+}

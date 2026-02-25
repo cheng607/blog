@@ -1,0 +1,60 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.example.blog.mapper.ArticleMapper">
+
+    <!-- 已有的文章与标签关联结果映射 -->
+    <resultMap id="ArticleWithTagsResultMap" type="com.example.blog.entity.Article">
+        <id property="id" column="id"/>
+        <result property="title" column="title"/>
+        <result property="content" column="content"/>
+        <result property="coverImage" column="cover_image"/>
+        <result property="publishTime" column="publish_time"/>
+        <result property="updateTime" column="update_time"/>
+        <result property="userId" column="user_id"/>
+        <result property="viewsCount" column="views_count"/>
+        <!-- 关联标签列表（一对多关系） -->
+        <collection property="tags" ofType="com.example.blog.entity.Tag">
+            <id property="id" column="tag_id"/>
+            <result property="name" column="tag_name"/>
+            <result property="description" column="tag_description"/>
+        </collection>
+    </resultMap>
+
+    <!-- 新增：根据ID查询文章及关联标签 -->
+    <select id="selectByIdWithTags" resultMap="ArticleWithTagsResultMap">
+        SELECT
+            a.*,
+            t.id AS tag_id,
+            t.name AS tag_name,
+            t.description AS tag_description
+        FROM article a
+                 LEFT JOIN article_tag at ON a.id = at.article_id
+            LEFT JOIN tag t ON at.tag_id = t.id
+        WHERE a.id = #{id}
+    </select>
+
+    <!-- 已有的查询所有文章及标签 -->
+    <select id="selectAllWithTags" resultMap="ArticleWithTagsResultMap">
+        SELECT
+            a.*,
+            t.id AS tag_id,
+            t.name AS tag_name,
+            t.description AS tag_description
+        FROM article a
+                 LEFT JOIN article_tag at ON a.id = at.article_id
+            LEFT JOIN tag t ON at.tag_id = t.id
+        ORDER BY a.publish_time DESC
+    </select>
+    <select id="selectByTagId" resultMap="ArticleWithTagsResultMap">
+        SELECT
+            a.*,
+            t.id AS tag_id,
+            t.name AS tag_name,
+            t.description AS tag_description
+        FROM article a
+                 LEFT JOIN article_tag at ON a.id = at.article_id
+            LEFT JOIN tag t ON at.tag_id = t.id
+        WHERE at.tag_id = #{tagId}  -- 通过关联表的tag_id筛选
+        ORDER BY a.publish_time DESC
+    </select>
+</mapper>
