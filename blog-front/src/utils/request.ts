@@ -3,7 +3,7 @@ import { useRouter } from 'vue-router'
 const router = useRouter()
 // 1. 创建Axios实例
 const request = axios.create({
-    baseURL: 'http://47.114.122.96:9090/',
+    baseURL: 'http://localhost:9090/',
     timeout: 10000,
     headers: {
         'Content-Type': 'application/json'

@@ -7,7 +7,7 @@ export default defineConfig({
     hmr: true,
     proxy: {
       '/api': {
-        target: 'http://47.114.122.96:9090/',
+        target: 'http://localhost:9090/',
         changeOrigin: true,
         rewrite: (path) => path.replace(/^\/api/, '')
       }
