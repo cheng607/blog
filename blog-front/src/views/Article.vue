@@ -1,14 +1,30 @@
 <script setup lang="ts">
-import { ref, onMounted, nextTick, watch, watchEffect } from 'vue'
+import { ElButton, ElDivider, ElLoading, ElTag } from 'element-plus'
+import 'element-plus/es/components/divider/style/css'
+import 'element-plus/es/components/button/style/css'
+import 'element-plus/es/components/loading/style/css'
+import 'element-plus/es/components/message/style/css'
+import 'element-plus/es/components/tag/style/css'
+const vLoading = ElLoading.directive
+import { ref, onMounted, onUnmounted, nextTick, watch, watchEffect } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { Marked } from 'marked'
 import { markedHighlight } from 'marked-highlight'
 import { getArticle, addViewsCount } from '../api/articles'
+import { resolveMediaUrl } from '../utils/media'
 import hljs from 'highlight.js'
 import 'highlight.js/styles/github.css'
 import Sidebar from '../components/Sidebar.vue'
 import { ElMessage } from 'element-plus'
+import DOMPurify from 'dompurify'
+
 const route = useRoute()
+const tocDropdownOpen = ref(false)
+const isMobileLayout = ref(false)
+
+const checkMobile = () => {
+    isMobileLayout.value = window.innerWidth <= 992
+}
 const article = ref<any>(null)
 const loading = ref(true)
 const error = ref('')
@@ -106,77 +122,130 @@ const addCopyToCodeBlocks = () => {
     });
 }
 
+let articleRequest = 0
+const loadArticle = async (id: number) => {
+    const current = ++articleRequest
+    loading.value = true
+    error.value = ''
+    article.value = null
+    markdownHtml.value = ''
+    toc.value = []
+
+    try {
+        const res = await getArticle(id)
+        if (current !== articleRequest) return
+		article.value = res.data
+		if (article.value?.coverImage) {
+			article.value.coverImage = resolveMediaUrl(article.value.coverImage)
+		}
+		const rawHtml = await marked.parse(article.value.content)
+        if (current !== articleRequest) return
+		// 使用 DOMPurify 清洗 HTML，防止 XSS
+		markdownHtml.value = DOMPurify.sanitize(rawHtml, {
+			ALLOWED_TAGS: [
+				'p',
+				'br',
+				'strong',
+				'em',
+				'u',
+				's',
+				'a',
+				'ul',
+				'ol',
+				'li',
+				'blockquote',
+				'pre',
+				'code',
+				'h1',
+				'h2',
+				'h3',
+				'h4',
+				'h5',
+				'h6',
+				'img',
+				'table',
+				'thead',
+				'tbody',
+				'tr',
+				'th',
+				'td',
+				'hr',
+			],
+			ALLOWED_ATTR: ['href', 'src', 'alt', 'title', 'class', 'id', 'target', 'rel'],
+		})
+		await nextTick()
+        addCopyToCodeBlocks()
+        refreshCodeHighlight()
+        toc.value = []
+        const headers = document.querySelectorAll('.article-body h1, .article-body h2, .article-body h3, .article-body h4, .article-body h5, .article-body h6')
+        const usedIds = new Set<string>()
+        headers.forEach((h) => {
+            const el = h as HTMLElement
+            let text = (el.textContent || '').trim()
+            if (!text) return
+            let slug = text.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9\-]/g, '')
+            if (!slug) slug = 'section'
+            let uniq = slug
+            let idx = 1
+            while (usedIds.has(uniq)) {
+                uniq = `${slug}-${idx++}`
+            }
+            usedIds.add(uniq)
+            el.id = uniq
+            const level = Number(el.tagName.replace('H', '')) || 1
+            toc.value.push({ id: uniq, text, level })
+        })
+        void watchViewsCount(id)
+    } catch (err) {
+        if (current !== articleRequest) return
+        error.value = err instanceof Error ? err.message : '获取文章失败'
+        console.error(err)
+    } finally {
+        if (current === articleRequest) loading.value = false
+    }
+}
+
 onMounted(async () => {
-    window.scrollTo({
-        top: 500,
-        behavior: "smooth"
-    })
+    checkMobile()
+    window.addEventListener('resize', checkMobile)
+
+})
+
+onUnmounted(() => {
+    articleRequest++
+    window.removeEventListener('resize', checkMobile)
+})
+
+const reloadArticle = async () => {
     const id = route.query.id
-    if (!id) {
-        error.value = '文章ID不存在'
+    if (typeof id !== 'string' || !/^[1-9]\d*$/.test(id) || !Number.isSafeInteger(Number(id))) {
+        articleRequest++
+        article.value = null
+        markdownHtml.value = ''
+        toc.value = []
+        error.value = '文章 ID 无效'
         loading.value = false
         return
     }
-    await watchViewsCount(Number(id))
-    try {
-        const res = await getArticle(Number(id))
-        article.value = res.data
-        markdownHtml.value = await marked.parse(article.value.content)
-        // 关键：解析完成后，等待DOM渲染再添加复制按钮
-        await nextTick()
-        addCopyToCodeBlocks()
-        // 新增：初始化时刷新一次高亮
-        refreshCodeHighlight()
-            // 生成目录（TOC）并注入到页面标题
-            // 选择渲染后的文章内的所有标题，生成唯一 id 并收集
-            toc.value = []
-            const headers = document.querySelectorAll('.article-body h1, .article-body h2, .article-body h3, .article-body h4, .article-body h5, .article-body h6')
-            const usedIds = new Set<string>()
-            headers.forEach((h) => {
-                const el = h as HTMLElement
-                let text = (el.textContent || '').trim()
-                if (!text) return
-                // 生成 slug
-                let slug = text.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9\-]/g, '')
-                if (!slug) slug = 'section'
-                let uniq = slug
-                let idx = 1
-                while (usedIds.has(uniq)) {
-                    uniq = `${slug}-${idx++}`
-                }
-                usedIds.add(uniq)
-                el.id = uniq
-                const level = Number(el.tagName.replace('H', '')) || 1
-                toc.value.push({ id: uniq, text, level })
-            })
-    } catch (err) {
-        error.value = '获取文章失败'
-        console.error(err)
-    } finally {
-        loading.value = false
-    }
-    // 清理过期记录
-    Object.keys(localStorage).forEach(key => {
-        if (key.startsWith('article_viewed_')) {
-            const item = JSON.parse(localStorage.getItem(key) || '{}');
-            if (item.expireTime && Date.now() > item.expireTime) {
-                localStorage.removeItem(key);
-            }
-        }
-    });
-})
+    await loadArticle(Number(id))
+}
+watch(() => route.query.id, () => { void reloadArticle() }, { immediate: true })
 
 // 监控用户停留时间并修改浏览量
 async function watchViewsCount(articleId: number) {
-    const storageKey = `article_viewed_${articleId}`;
-    // 检查本地存储：如果已记录，则不重复调用接口
-    if (localStorage.getItem(storageKey)) {
-        return;
-    }
+    const storageKey = `article_viewed_${articleId}`
     try {
-        await addViewsCount(articleId)
-        const expireTime = Date.now() + 24 * 60 * 60 * 1000;
-        localStorage.setItem(storageKey, JSON.stringify({ viewed: true, expireTime }));
+        try {
+            const cached = JSON.parse(localStorage.getItem(storageKey) || 'null')
+            if (cached?.expireTime > Date.now()) return
+        } catch {}
+        const res = await addViewsCount(articleId)
+        const newCount = res.data
+        if (article.value?.id === articleId && typeof newCount === 'number') {
+            article.value.viewsCount = newCount
+        }
+        const expireTime = Date.now() + 24 * 60 * 60 * 1000
+        localStorage.setItem(storageKey, JSON.stringify({ viewed: true, expireTime }))
     } catch (error) {
         console.error(error)
     }
@@ -210,7 +279,7 @@ const handleTag = (tagId: number) => {
 
         <div class="article-container" v-loading="loading" element-loading-text="加载中..."
             element-loading-background="rgba(255, 255, 255, 0.8)">
-            <div v-if="error" class="error-message">{{ error }}</div>
+            <div v-if="error" class="error-message" role="alert">{{ error }} <el-button @click="reloadArticle">重试</el-button><el-button @click="router.push('/')">返回首页</el-button></div>
 
             <!-- 文章内容 -->
             <div v-else-if="article" class="article-content">
@@ -238,8 +307,32 @@ const handleTag = (tagId: number) => {
                 </div>
             </div>
         </div>
-        <div class="right">
+        <aside class="right" v-if="!isMobileLayout">
             <Sidebar :toc="toc" />
+        </aside>
+
+        <!-- 移动端目录按钮 - 右上角简洁图标 -->
+        <button
+            v-if="isMobileLayout && toc.length"
+            type="button"
+            class="toc-fab"
+            aria-label="打开文章目录"
+            @click.stop="tocDropdownOpen = true"
+        >
+            ☰
+        </button>
+
+        <!-- 移动端目录下拉面板 - 只保留目录内容，无任何额外头部 -->
+        <div
+            v-if="isMobileLayout && tocDropdownOpen"
+            class="toc-dropdown"
+            @click.self="tocDropdownOpen = false"
+        >
+            <div class="toc-dropdown-content">
+                <div class="toc-dropdown-body">
+                    <Sidebar :toc="toc" />
+                </div>
+            </div>
         </div>
     </div>
 </template>
@@ -247,22 +340,166 @@ const handleTag = (tagId: number) => {
 <style scoped>
 .article-page {
     width: 100%;
-    padding: 20px 0;
+    max-width: 100%;
+    padding: 12px 0 24px;
     display: flex;
     justify-content: center;
+    align-items: flex-start;
+    box-sizing: border-box;
+    gap: 20px;
 }
 
 .article-container {
-    width: 1000px;
-    padding: 0 20px;
+    flex: 1;
+    min-width: 0;
+    max-width: 1000px;
+    width: 100%;
+    padding: 0 16px;
+    box-sizing: border-box;
 }
 
 .right {
-    width: 260px;
-    margin-left: 20px;
+    width: 280px;
+    flex-shrink: 0;
     display: flex;
     flex-direction: column;
     gap: 20px;
+}
+
+/* 移动端目录按钮 - 右上角简洁样式 */
+/* 移动端目录按钮 - 右上角简洁图标 */
+/* 移动端目录按钮 - 右上角简洁图标 */
+.toc-fab {
+    position: fixed !important;
+    right: 16px !important;
+    left: auto !important;
+    top: 70px !important;
+    bottom: auto !important;
+    z-index: 10000;
+    width: 36px;
+    height: 36px;
+    padding: 0;
+    border: 1px solid #49b1f5;
+    border-radius: 6px;
+    background: #fff;
+    color: #49b1f5;
+    font-size: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 2px 6px rgba(73, 177, 245, 0.2);
+    cursor: pointer;
+    touch-action: manipulation;
+}
+
+/* 移动端目录下拉面板（从顶部滑下来） */
+.toc-dropdown {
+    position: fixed;
+    top: 60px;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.4);
+    z-index: 10001;
+    display: flex;
+    justify-content: center;
+    align-items: flex-start; /* 内容从顶部开始，不强制撑满 */
+}
+
+.toc-dropdown-content {
+    width: 100%;
+    max-width: 100%;
+    background: #fff;
+    border-radius: 0 0 12px 12px;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+    height: auto;          /* 完全自适应内容高度 */
+    display: flex;
+    flex-direction: column;
+    animation: slideDown 0.25s ease-out;
+}
+
+@keyframes slideDown {
+    from {
+        transform: translateY(-20px);
+        opacity: 0;
+    }
+    to {
+        transform: translateY(0);
+        opacity: 1;
+    }
+}
+
+.toc-dropdown-body {
+    overflow-y: auto;
+    padding: 8px 0;
+}
+
+@media (max-width: 992px) {
+    .article-page {
+        flex-direction: column;
+        padding: 8px 0 80px;
+    }
+
+    .article-container {
+        padding: 0 12px;
+    }
+
+    .article-content {
+        padding: 16px 12px;
+    }
+
+    .article-title {
+        font-size: 22px;
+        margin: 12px 0;
+        line-height: 1.4;
+    }
+
+    .article-meta {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 12px;
+    }
+
+    .article-box {
+        flex-wrap: wrap;
+        gap: 8px 16px;
+    }
+
+    .tags {
+        flex-wrap: wrap;
+    }
+
+    .article-body {
+        font-size: 16px;
+        line-height: 1.75;
+        word-break: break-word;
+    }
+
+    :deep(.article-body pre) {
+        font-size: 13px;
+        padding: 0.75em;
+        margin: 1em 0;
+    }
+
+    :deep(.article-body pre code.hljs) {
+        font-size: 12px !important;
+    }
+
+    :deep(.article-body code) {
+        font-size: 14px;
+    }
+
+    :deep(.article-body table) {
+        display: block;
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+        font-size: 13px;
+    }
+
+    :deep(.code-copy-btn) {
+        top: 8px;
+        right: 8px;
+    }
 }
 
 .article-content {
@@ -357,7 +594,7 @@ const handleTag = (tagId: number) => {
     margin: 0.5em 0;
 }
 
-::v-deep .article-body pre {
+:deep(.article-body pre) {
     border-radius: 6px;
     margin: 1.5em 0;
     position: relative;
@@ -366,25 +603,25 @@ const handleTag = (tagId: number) => {
     border: 1px solid #f5f5f5;
     font-size: large;
 }
-::v-deep .article-body code{
+:deep(.article-body code){
     font-size: large;
 }
-::v-deep .article-body pre code.hljs {
+:deep(.article-body pre code.hljs) {
     font-size: 14px !important;
 }
 
 /* 暗模式代码高亮背景*/
-:root.dark ::v-deep .article-body pre code.hljs {
+:root.dark :deep(.article-body pre code.hljs) {
     background: #333 !important;
     color: #e0e0e0 !important;
 }
 
-::v-deep .article-body img {
+:deep(.article-body img) {
     width: 100%;
 }
 
 /* 代码块复制按钮样式 */
-::v-deep .code-copy-btn {
+:deep(.code-copy-btn) {
     position: absolute;
     top: 20px;
     right: 20px;
@@ -405,55 +642,55 @@ const handleTag = (tagId: number) => {
 }
 
 /* 鼠标悬浮代码块时显示按钮（原有逻辑不变） */
-::v-deep .article-body pre:hover .code-copy-btn {
+:deep(.article-body pre:hover .code-copy-btn) {
     display: flex;
 }
 
-::v-deep .code-copy-btn svg {
+:deep(.code-copy-btn svg) {
     transition: all 0.2s ease;
 }
 
-::v-deep .code-copy-btn:hover {
+:deep(.code-copy-btn:hover) {
     background-color: #f8f9fa;
     border-color: #ddd;
 }
 
-::v-deep .code-copy-btn .copy-icon {
+:deep(.code-copy-btn .copy-icon) {
     display: block;
     color: #666;
 }
 
-::v-deep .code-copy-btn .check-icon {
+:deep(.code-copy-btn .check-icon) {
     display: none;
     color: #fff;
 }
 
-::v-deep .code-copy-btn.copied {
+:deep(.code-copy-btn.copied) {
     background-color: #67c23a;
     border-color: #67c23a;
 }
 
-::v-deep .code-copy-btn.copied .copy-icon {
+:deep(.code-copy-btn.copied .copy-icon) {
     display: none;
 }
 
-::v-deep .code-copy-btn.copied .check-icon {
+:deep(.code-copy-btn.copied .check-icon) {
     display: block;
 }
 
-::v-deep .article-body table {
+:deep(.article-body table) {
     width: 100%;
     border-collapse: collapse;
     margin: 1.5em 0;
     font-size: 14px;
 }
 
-::v-deep .article-body table-container {
+:deep(.article-body table-container) {
     overflow-x: auto;
 }
 
 /* 表头样式（原有逻辑不变） */
-::v-deep .article-body th {
+:deep(.article-body th) {
     font-weight: 600;
     text-align: left;
     padding: 10px 12px;
@@ -461,45 +698,45 @@ const handleTag = (tagId: number) => {
 }
 
 /* 单元格样式（原有逻辑不变） */
-::v-deep .article-body td {
+:deep(.article-body td) {
     padding: 10px 12px;
     border: 2px solid #ddd;
 }
 
-::v-deep:root.dark .article-body td {
+:root.dark :deep(.article-body td) {
     color: #fff;
 }
 
 /* 暗色模式适配优化（原有逻辑不变） */
-:root.dark ::v-deep .article-content {
+:root.dark :deep(.article-content) {
     background-color: #1A1A1A;
     border-color: #333;
 }
 
-:root.dark ::v-deep .article-body pre {
+:root.dark :deep(.article-body pre) {
     background-color: #2d2d2d !important;
     border-color: #444 !important;
 }
 
-:root.dark ::v-deep .article-body code {
+:root.dark :deep(.article-body code) {
     color: #e0e0e0 !important;
 }
 
-:root.dark ::v-deep .code-copy-btn {
+:root.dark :deep(.code-copy-btn) {
     background-color: #3a3a3a;
     border-color: #555;
 }
 
-:root.dark ::v-deep .code-copy-btn:hover {
+:root.dark :deep(.code-copy-btn:hover) {
     background-color: #444;
     border-color: #666;
 }
 
-:root.dark ::v-deep .code-copy-btn .copy-icon {
+:root.dark :deep(.code-copy-btn .copy-icon) {
     color: #ccc;
 }
 
-:root.dark ::v-deep .code-copy-btn.copied {
+:root.dark :deep(.code-copy-btn.copied) {
     background-color: #67c23a;
     border-color: #67c23a;
 }
@@ -519,44 +756,44 @@ const handleTag = (tagId: number) => {
     color: #aaa;
 }
 
-::v-deep .article-body .hljs-keyword {
+:deep(.article-body .hljs-keyword) {
     color: #007acc;
 }
 
-::v-deep .article-body .hljs-string {
+:deep(.article-body .hljs-string) {
     color: #ce9178;
 }
 
-::v-deep .article-body .hljs-comment {
+:deep(.article-body .hljs-comment) {
     color: #6a9955;
 }
 
-::v-deep .article-body .hljs-function {
+:deep(.article-body .hljs-function) {
     color: #dcdcaa;
 }
 
-::v-deep .article-body .hljs-number {
+:deep(.article-body .hljs-number) {
     color: #b5cea8;
 }
 
 /* 暗色模式下代码高亮颜色适配（原有逻辑不变） */
-:root.dark ::v-deep .article-body .hljs-keyword {
+:root.dark :deep(.article-body .hljs-keyword) {
     color: #569cd6;
 }
 
-:root.dark ::v-deep .article-body .hljs-string {
+:root.dark :deep(.article-body .hljs-string) {
     color: #ce9178;
 }
 
-:root.dark ::v-deep .article-body .hljs-comment {
+:root.dark :deep(.article-body .hljs-comment) {
     color: #6a9955;
 }
 
-:root.dark ::v-deep .article-body .hljs-function {
+:root.dark :deep(.article-body .hljs-function) {
     color: #dcdcaa;
 }
 
-:root.dark ::v-deep .article-body .hljs-number {
+:root.dark :deep(.article-body .hljs-number) {
     color: #b5cea8;
 }
 </style>

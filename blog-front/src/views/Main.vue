@@ -1,4 +1,5 @@
 <script setup lang="ts">
+
 import AnswerBook from '../components/AnswerBook.vue';
 import List from '../components/List.vue';
 import Mine from '../components/Mine.vue';
@@ -8,13 +9,13 @@ import Type from '../components/Type.vue';
 
 <template>
   <div class="main-page">
+    <Type class="page-type" />
     <div class="list-container-wrapper">
       <List></List>
     </div>
     <div class="right">
-      <Mine></Mine>
-      <Type></Type>
-      <AnswerBook></AnswerBook>
+      <Mine class="page-mine" />
+      <AnswerBook class="page-answer" />
     </div>
   </div>
 </template>
@@ -22,21 +23,59 @@ import Type from '../components/Type.vue';
 <style scoped>
 .main-page {
   height: auto;
-  display: flex;
-  justify-content: space-around;
-  margin: 0 150px;
-  padding: 20px;
+  display: grid;
+  grid-template-columns: 1fr 280px;
+  grid-template-areas:
+    "list mine"
+    "list type"
+    "list answer";
+  justify-content: center;
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 20px 24px;
+  gap: 20px;
+  box-sizing: border-box;
 }
 
 .list-container-wrapper {
-  width: 75%;
+  grid-area: list;
+  min-width: 0;
+}
+
+.page-type {
+  grid-area: type;
+  align-self: start;
 }
 
 .right {
-  width: 25%;
-  margin-left: 20px;
-  display: flex;
-  flex-direction: column;
-  gap: 20px;
+  display: contents;
+}
+
+.page-mine {
+  grid-area: mine;
+  align-self: start;
+}
+
+.page-answer {
+  grid-area: answer;
+  align-self: start;
+}
+
+@media (max-width: 992px) {
+  .main-page {
+    grid-template-columns: 1fr;
+    grid-template-areas:
+      "type"
+      "list"
+      "mine"
+      "answer";
+    padding: 16px;
+    margin: 0;
+    gap: 12px;
+  }
+
+  .page-type {
+    margin: 0 -4px;
+  }
 }
 </style>

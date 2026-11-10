@@ -1,94 +1,93 @@
 import axios from 'axios'
-import { useRouter } from 'vue-router'
-const router = useRouter()
-// 1. 创建Axios实例
+import type { AxiosRequestConfig } from 'axios'
+import { API_BASE_URL } from '../config'
+import { adminHeaders, requireAdminLogin } from './adminAuth'
+
 const request = axios.create({
-    baseURL: 'http://47.114.122.96:9090/',
+    baseURL: API_BASE_URL,
     timeout: 10000,
     headers: {
         'Content-Type': 'application/json'
     }
 })
 
-// 2. 请求拦截器：发送请求前处理
 request.interceptors.request.use(
     (config) => {
+        // Public third-party APIs (music/quotes) must never receive the session.
+        if (!/^(?:[a-z][a-z0-9+.-]*:)?\/\//i.test(config.url || '')) {
+            Object.entries(adminHeaders()).forEach(([key, value]) => config.headers.set(key, value))
+        }
         return config
     },
-    (error) => {
-        return Promise.reject(error)
-    }
+    (error) => Promise.reject(error)
 )
 
-// 3. 响应拦截器：接收响应后处理
 request.interceptors.response.use(
     (response) => {
         const res = response.data
         if (res.code !== 200 && res.code) {
-            return Promise.reject(new Error(res.message || 'Error'))
+            const msg = res.msg || res.message || '请求失败'
+            return Promise.reject(new Error(msg))
         }
         return res
     },
     (error) => {
         let message = ''
-        console.log(error)
         if (error.response) {
-            // 服务器返回错误
-            switch (error.response.status) {
-                case 401:
-                    message = '登录已过期，请重新登录'
-                    router.push('/')
-                    break
-                case 404:
-                    message = '请求地址不存在'
-                    break
-                case 500:
-                    message = '服务器内部错误'
-                    break
-                default:
-                    message = `请求错误（${error.response.status}）`
+            const status = error.response.status
+            const backendMessage = error.response.data?.msg
+            const defaults: Record<number, string> = {
+                400: '请求参数无效', 401: '登录已过期，请重新登录',
+                404: '请求的内容不存在', 409: '当前操作存在冲突', 413: '提交内容过大',
+                429: '请求过于频繁，请稍后重试', 500: '服务暂时不可用，请稍后重试',
+                502: 'AI 服务暂时不可用', 503: '服务暂时不可用，请稍后重试', 504: '请求超时，请稍后重试',
             }
+            message = typeof backendMessage === 'string' ? backendMessage : (defaults[status] || `请求错误（${status}）`)
+            if (status === 401 && !/^(?:[a-z][a-z0-9+.-]*:)?\/\//i.test(error.config?.url || '')) requireAdminLogin()
+        } else if (error.code === 'ECONNABORTED' || error.code === 'ETIMEDOUT') {
+            message = '请求超时，请稍后重试'
         } else if (error.request) {
-            // 请求已发出但无响应（如网络错误）
-            message = '网络连接失败，请检查网络'
+            message = '网络连接失败，请检查网络或后端服务'
         } else {
-            // 其他错误
             message = error.message
         }
-
-        // 使用message变量：打印错误信息（或根据需求展示给用户）
         console.error('请求错误:', message)
-        // 也可以将message作为错误信息传递
         return Promise.reject(new Error(message))
     }
 )
-const requestMethod = (url: string, method: string, data = {}, config = {}) => {
-    // 根据请求方法区分参数类型（GET用params，其他用data）
+
+const requestMethod = (url: string, method: string, data = {}, config: AxiosRequestConfig = {}) => {
     const params = method.toLowerCase() === 'get' ? data : {}
     const requestData = method.toLowerCase() !== 'get' ? data : {}
 
     return request({
         url,
         method,
-        params, // GET参数
-        data: requestData, // POST/PUT参数
-        ...config // 允许覆盖默认配置（如自定义headers）
+        params,
+        data: requestData,
+        ...config
     })
 }
 
-// 3. 暴露常用请求方法（简化调用）
 export const http = {
-    get: (url: string, params = {}, config = {}) => {
+    get: (url: string, params = {}, config: AxiosRequestConfig = {}) => {
         return requestMethod(url, 'get', params, config)
     },
-    post: (url: string, data = {}, config = {}) => {
+    post: (url: string, data = {}, config: AxiosRequestConfig = {}) => {
         return requestMethod(url, 'post', data, config)
     },
-    put: (url: string, data = {}, config = {}) => {
+    put: (url: string, data = {}, config: AxiosRequestConfig = {}) => {
         return requestMethod(url, 'put', data, config)
     },
-    delete: (url: string, params = {}, config = {}) => {
+    delete: (url: string, params = {}, config: AxiosRequestConfig = {}) => {
         return requestMethod(url, 'delete', params, config)
+    },
+    upload: (url: string, formData: FormData, config: AxiosRequestConfig = {}) => {
+        return request.post(url, formData, {
+            headers: { 'Content-Type': 'multipart/form-data' },
+            ...config
+        })
     }
 }
+
 export default request

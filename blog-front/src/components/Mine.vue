@@ -1,10 +1,11 @@
 <script setup lang="ts">
+import { ElButton } from 'element-plus'
+import 'element-plus/es/components/button/style/css'
 import { ref, onMounted } from 'vue'
-import { useRouter } from 'vue-router';
-import { getUser } from '../api/user';
-import { getList } from '../api/articles';
-import { getTag } from '../api/tag'
-import { getHollow } from '../api/hollow';
+import { useRouter } from 'vue-router'
+import { getSiteSummary } from '../api/site'
+import { resolveMediaUrl } from '../utils/media'
+import defaultAvatar from '../assets/loading.gif'
 interface user {
     username: string,
     avatar: string,
@@ -14,32 +15,36 @@ const ArticleCount = ref<number>(0)
 const HollowCount = ref<number>(0)
 const TypeCount = ref<number>(0)
 const UserData = ref<user>()
-onMounted(async () => {
+const error = ref('')
+const loadSummary = async () => {
+    error.value = ''
     try {
-        const res = await getUser()
-        UserData.value = res.data[0]
-        const ArticleRes = await getList()
-        ArticleCount.value = ArticleRes.data.length
-        const HollowRes=await getHollow()
-        HollowCount.value=HollowRes.data.length
-        const TagRes = await getTag()
-        TypeCount.value = TagRes.data.length
-    } catch (error) {
-        console.error('用户数据错误', error)
-    }
-})
+        const res = await getSiteSummary()
+        UserData.value = res.data?.profile ?? undefined
+        ArticleCount.value = res.data?.articleCount ?? 0
+        HollowCount.value = res.data?.hollowCount ?? 0
+        TypeCount.value = res.data?.tagCount ?? 0
+    } catch (e) { error.value = e instanceof Error ? e.message : '加载统计失败' }
+}
+onMounted(loadSummary)
 const router = useRouter()
 const handleLink = () => {
     router.push('/about')
 }
+
+const avatarSrc = () => {
+    const url = resolveMediaUrl(UserData.value?.avatar)
+    return url || defaultAvatar
+}
 </script>
- 
+
 <template>
     <div class="mine-container">
-        <img :src="UserData?.avatar || '../assets/loading.gif'" class="avatar">
-        <div class="name">{{ UserData?.username }}</div>
+        <img :src="avatarSrc()" class="avatar" alt="头像">
+        <div class="name">{{ UserData?.username || '博主尚未设置资料' }}</div>
         <div class="note">个性签名：{{ UserData?.signature }}</div>
-        <div class="summary">
+        <div v-if="error" role="alert">{{ error }} <el-button text @click="loadSummary">重试</el-button></div>
+        <div v-else class="summary">
             <div class="item">
                 <div class="target">文章</div>
                 <div class="num">{{ ArticleCount }}</div>
@@ -80,6 +85,60 @@ const handleLink = () => {
     border-radius: 10px;
     color: #444;
     background-color: #fff;
+}
+
+/* 移动端紧凑优化 */
+@media (max-width: 768px) {
+  .mine-container {
+    height: auto !important;
+    padding: 16px 14px !important;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08) !important;
+  }
+
+  .avatar {
+    width: 72px !important;
+    height: 72px !important;
+    margin-bottom: 8px !important;
+  }
+
+  .name {
+    font-size: 17px !important;
+    margin-bottom: 4px !important;
+  }
+
+  .note {
+    font-size: 13px !important;
+    margin-bottom: 10px !important;
+    line-height: 1.4 !important;
+  }
+
+  .summary {
+    margin-bottom: 12px !important;
+    gap: 16px !important;
+  }
+
+  .item .target {
+    font-size: 12px !important;
+  }
+
+  .item .num {
+    font-size: 16px !important;
+  }
+
+  .link {
+    height: 36px !important;
+    font-size: 14px !important;
+    margin-bottom: 12px !important;
+  }
+
+  .ports {
+    gap: 16px !important;
+  }
+
+  .ports img {
+    width: 26px !important;
+    height: 26px !important;
+  }
 }
 
 .mine-container:hover {

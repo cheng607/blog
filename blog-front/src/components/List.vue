@@ -1,72 +1,97 @@
 <script setup lang="ts">
-import { ref, onMounted, computed } from 'vue'
-import { useRoute, useRouter } from 'vue-router';
+import { ElButton, ElLoading, ElPagination } from 'element-plus'
+import 'element-plus/es/components/button/style/css'
+import 'element-plus/es/components/loading/style/css'
+import 'element-plus/es/components/message/style/css'
+import 'element-plus/es/components/pagination/style/css'
+const vLoading = ElLoading.directive
+import { ref, onUnmounted, watch } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 import loadingImg from '../assets/loading.gif'
-import { getList } from '../api/articles'
+import { getList, getArticlesByTag } from '../api/articles'
+import { resolveMediaUrl } from '../utils/media'
+import { ElMessage } from 'element-plus'
+
 const currentPage = ref<number>(1)
 const pageSize = ref<number>(5)
-const isLoading = ref<boolean>(false)
+const isLoading = ref<boolean>(true)
 interface tagItem {
-    id: number,
+    id: number
     name: string
 }
 interface listItem {
-    id: number,
-    coverImage: string,
-    title: string,
-    content: string,
-    tags: tagItem[],
+    id: number
+    coverImage: string
+    title: string
+    excerpt: string
+    tags: tagItem[]
     publishTime: string
 }
+const total = ref(0)
+const error = ref('')
 const listData = ref<listItem[]>([])
 const router = useRouter()
 const route = useRoute()
+
+const getCoverSrc = (item: listItem) => {
+    const url = resolveMediaUrl(item.coverImage)
+    return url || loadingImg
+}
+
+
+let requestId = 0
+onUnmounted(() => { requestId++ })
 const fetchList = async () => {
+    const current = ++requestId
+    listData.value = []
+    error.value = ''
+    isLoading.value = true
     const typeId = route.query.typeId
     try {
-        const res = await getList()
-        if (typeId) {
-            listData.value = res.data
-            listData.value = listData.value.filter((item) => {
-                return item.tags.some(tag => tag.id === Number(typeId));
-            })
-        } else {
-            listData.value = res.data
-        }
+        const res = typeId
+            ? await getArticlesByTag(Number(typeId), currentPage.value, pageSize.value)
+            : await getList(currentPage.value, pageSize.value)
+        if (current !== requestId) return
+        listData.value = res.data?.items ?? []
+        total.value = res.data?.total ?? 0
+        currentPage.value = res.data?.page ?? currentPage.value
     } catch (err) {
-        console.error('获取文章列表失败', err);
-        listData.value = [];
+        if (current !== requestId) return
+        console.error('获取文章列表失败', err)
+        error.value = err instanceof Error ? err.message : '加载文章列表失败'
+        ElMessage.error(error.value)
+        listData.value = []
     } finally {
-        isLoading.value = false;
+        if (current === requestId) isLoading.value = false
     }
 }
 
-onMounted(() => {
+watch(
+    () => route.query.typeId,
+    () => {
+        currentPage.value = 1
+        fetchList()
+    },
+    { immediate: true }
+)
 
-    fetchList()
-})
-
-const displayData = computed(() => {
-    const startIndex = (currentPage.value - 1) * pageSize.value
-    const endIndex = startIndex + pageSize.value
-    return listData.value.slice(startIndex, endIndex)
-})
-// 处理页码变化
 const handleChange = (val: number) => {
+    if (val === currentPage.value) return
     currentPage.value = val
+    fetchList()
 }
 
-// 跳转文章详情页
 const handleDetail = (id: number) => {
     router.push(`/article?id=${id}`)
 }
 </script>
 
 <template>
-    <div class="list-container">
-        <div class="item" v-for="item in displayData" :key="item.id" @click="handleDetail(item.id)">
-            <!-- <img :src="'http://47.114.122.96:9090' + item.coverImage || loadingImg" class="item-img"> -->
-            <img :src="loadingImg" class="item-img">
+    <div class="list-container" v-loading="isLoading">
+        <div v-if="error" class="list-empty" role="alert">{{ error }} <el-button @click="fetchList">重试</el-button></div>
+        <div v-else-if="!isLoading && listData.length === 0" class="list-empty">暂无文章</div>
+        <div class="item" v-for="item in listData" :key="item.id" @click="handleDetail(item.id)">
+            <img :src="getCoverSrc(item)" class="item-img" alt="封面" @error="($event.target as HTMLImageElement).src = loadingImg">
             <div class="item-box">
                 <div class="item-title">{{ item.title }}</div>
                 <div class="item-tag">
@@ -74,12 +99,21 @@ const handleDetail = (id: number) => {
                         <span>{{ tag.name }}</span>
                     </div>
                 </div>
-                <div class="item-content">{{ item.content }}</div>
+                <div class="item-content">{{ item.excerpt }}</div>
                 <div class="item-time">发布时间：{{ $formatTime(item.publishTime) }}</div>
             </div>
         </div>
-        <el-pagination class="controller" background layout="prev, pager, next" :total="listData.length"
-            :current-page="currentPage" :page-size="pageSize" @current-change="handleChange" />
+        <el-pagination
+            v-if="!error && total > pageSize"
+            class="controller"
+            background
+            layout="prev, pager, next"
+            :total="total"
+            :disabled="isLoading"
+            :current-page="currentPage"
+            :page-size="pageSize"
+            @current-change="handleChange"
+        />
     </div>
 </template>
 
@@ -87,6 +121,14 @@ const handleDetail = (id: number) => {
 .list-container {
     width: 100%;
     height: auto;
+    min-height: 120px;
+}
+
+.list-empty {
+    text-align: center;
+    padding: 60px 20px;
+    color: #999;
+    font-size: 16px;
 }
 
 .item {
@@ -101,6 +143,7 @@ const handleDetail = (id: number) => {
     background-color: #fff;
     box-sizing: border-box;
     overflow: hidden;
+    cursor: pointer;
 }
 
 .item:hover {
@@ -112,11 +155,64 @@ const handleDetail = (id: number) => {
     height: 220px;
     padding: 15px;
     flex-shrink: 0;
+    object-fit: cover;
+}
+
+/* 移动端取消封面图，让列表更紧凑 */
+@media (max-width: 768px) {
+  .item-img {
+    display: none;
+  }
+
+  .item {
+    flex-direction: column !important;
+    height: auto !important;
+    min-height: auto;
+    padding: 16px 18px !important;
+    border-bottom: 1px solid #f0f0f0;
+  }
+
+  .item:last-child {
+    border-bottom: none;
+  }
+
+  .item-box {
+    padding: 0 !important;
+  }
+
+  .item-title {
+    font-size: 17px !important;
+    line-height: 1.4 !important;
+    font-weight: 600;
+  }
+
+  .item-content {
+    font-size: 14px !important;
+    color: #666 !important;
+    max-height: none !important;
+    -webkit-line-clamp: 4 !important;
+    line-height: 1.6 !important;
+    margin: 8px 0;
+  }
+
+  .item-tag {
+    margin: 8px 0 !important;
+  }
+
+  .item-tag span {
+    font-size: 12px !important;
+    padding: 2px 8px !important;
+  }
+
+  .item-time {
+    font-size: 12px !important;
+    color: #999 !important;
+    padding: 4px 0 0 !important;
+  }
 }
 
 .item-box {
     width: 100%;
-    /* width: 620px; */
     height: 100%;
     display: flex;
     justify-content: center;
@@ -144,11 +240,9 @@ const handleDetail = (id: number) => {
 }
 
 .item-content {
-
     font-size: 20px;
     height: auto;
     max-height: 90px;
-    padding-right: 20px;
     overflow: hidden;
     text-overflow: ellipsis;
     display: -webkit-box;
@@ -157,8 +251,8 @@ const handleDetail = (id: number) => {
     line-height: 1.5;
     width: 100%;
     word-break: break-all;
-    padding-right: 0;
     box-sizing: border-box;
+    color: #666;
 }
 
 .controller {
@@ -176,5 +270,48 @@ const handleDetail = (id: number) => {
 :root.dark .item {
     border: 1px solid #f5f5f5;
     background-color: #1A1A1A;
+}
+
+:root.dark .item-content {
+    color: #aaa;
+}
+
+@media (max-width: 768px) {
+    .item {
+        flex-direction: column;
+        height: auto;
+        align-items: stretch;
+    }
+
+    .item-img {
+        width: 100%;
+        height: 180px;
+        padding: 12px 12px 0;
+        box-sizing: border-box;
+    }
+
+    .item-box {
+        padding: 12px;
+    }
+
+    .item-title {
+        font-size: 18px;
+        line-height: 1.4;
+    }
+
+    .item-content {
+        font-size: 15px;
+        max-height: none;
+        -webkit-line-clamp: 4;
+    }
+
+    .item-time {
+        margin-left: 0;
+        padding: 8px 0 0;
+    }
+
+    .controller {
+        margin: 20px 0;
+    }
 }
 </style>

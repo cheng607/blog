@@ -1,4 +1,5 @@
 <script setup lang="ts">
+
 import { ref, onMounted } from 'vue'
 interface linkItem {
     linkName: string,
@@ -102,9 +103,10 @@ onMounted(() => {
 }
 
 .link .list {
-    display: grid;
-    grid-template-columns: 1fr 1fr 1fr;
-    gap: 20px;
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 8px;
 }
 
 .link .list a {
@@ -112,11 +114,10 @@ onMounted(() => {
     text-decoration: none;
     color: #333;
     border: 1px solid #333;
-    border-radius: 20px;
-    padding: 5px 10px;
-    width: 80px;
-    overflow: hidden;
-    text-overflow: ellipsis;
+    border-radius: 16px;
+    padding: 4px 10px;
+    font-size: 13px;
+    white-space: nowrap;
 }
 
 :root.dark .link .list a {
@@ -178,5 +179,72 @@ onMounted(() => {
 
 :root.dark .copyright {
     color: #ddd;
+}
+
+/* 移动端 Footer 优化 - 减少冗余 */
+@media (max-width: 768px) {
+  .footer-container {
+    height: auto !important;
+    padding: 24px 12px 20px !important;
+  }
+
+  .footer {
+    flex-direction: column !important;
+    gap: 16px !important;
+    align-items: stretch !important;
+  }
+
+  /* 友情链接 - flex 自然换行，更整齐 */
+  .link .list {
+    gap: 6px !important;
+  }
+
+  .link .list a {
+    font-size: 12.5px !important;
+    padding: 3px 9px !important;
+    border-radius: 14px !important;
+  }
+
+  .title {
+    font-size: 16px !important;
+    margin: 4px 0 !important;
+  }
+
+  /* 二维码大幅缩小 */
+  .social {
+    justify-content: center !important;
+    gap: 24px !important;
+  }
+
+  .social .soc-icon {
+    width: 90px !important;
+    height: 90px !important;
+    border-radius: 12px !important;
+  }
+
+  .soc-box {
+    margin: 0 !important;
+  }
+
+  .soc-title {
+    font-size: 12px !important;
+    margin-top: 4px !important;
+  }
+
+  /* 联系方式 */
+  .message-box {
+    flex-direction: row !important;
+    justify-content: center !important;
+    gap: 16px !important;
+    font-size: 13px !important;
+  }
+
+  .beian-wrap {
+    flex-direction: column !important;
+    font-size: 12px !important;
+    margin-top: 12px !important;
+    gap: 4px !important;
+    text-align: center;
+  }
 }
 </style>

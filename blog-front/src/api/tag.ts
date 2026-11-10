@@ -6,3 +6,4 @@ export const getTag = () => {
 export const getTagByid = (tagId: number) => {
     return http.get(`/tag/${tagId}`)
 }
+export const createTag = (name: string) => http.post('/tag', { name, description: '' })

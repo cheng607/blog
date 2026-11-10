@@ -1,0 +1,28 @@
+# OS
+.DS_Store
+Thumbs.db
+
+# Env & secrets
+.env
+*.local
+
+# Go
+blog-back/bin/
+blog-back/blog-server
+blog-back/blog-server.exe
+blog-back/blog-server-linux
+blog-back/*.exe
+release/
+
+# Node
+blog-front/node_modules/
+blog-front/dist/
+
+# IDE
+.idea/
+.cursor/
+*.swp
+
+# Legacy (should not exist)
+blog-back/src/
+blog-back/pom.xml

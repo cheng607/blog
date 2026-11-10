@@ -1,0 +1,294 @@
+/* =========================================
+   现代移动端优化 v3（统一风格规范）
+   参考稀土掘金移动端极简卡片风格
+   ========================================= */
+
+/* 全局移动端卡片统一规范 */
+@media (max-width: 768px) {
+  /* 统一卡片圆角和阴影 */
+  .list-container .item,
+  .mine-container,
+  .type-container,
+  .answerBook-container,
+  .article-content,
+  .header-container .nav-container {
+    border-radius: 12px !important;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06) !important;
+  }
+
+  /* 主色调更克制：按钮/标签使用浅色背景 + 主色文字 */
+  .nav-item.active,
+  .type-item:hover,
+  .toc-fab,
+  .submit-btn {
+    background-color: #e6f0ff !important;
+    color: #49b1f5 !important;
+    border: 1px solid #c3d9ff;
+  }
+
+  /* 页面左右 padding 统一 */
+  .main-page,
+  .article-page,
+  .detail-page {
+    padding-left: 12px !important;
+    padding-right: 12px !important;
+  }
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
+  -webkit-tap-highlight-color: transparent;
+}
+
+body {
+  overflow-x: hidden;
+}
+
+/* 安全区域 */
+@supports (padding: env(safe-area-inset-bottom)) {
+  .agent-container,
+  .toc-fab,
+  .el-backtop {
+    bottom: calc(env(safe-area-inset-bottom) + 18px) !important;
+  }
+}
+
+/* ========== Header & Nav（移动端优化） ========== */
+@media (max-width: 768px) {
+  /* 移动端导航栏始终内联在 Header 内，不做顶部固定滑入效果 */
+  .nav-wrapper {
+    position: relative !important;
+    top: auto !important;
+    transform: none !important;
+    opacity: 1 !important;
+    box-shadow: none !important;
+    background-color: rgba(255, 255, 255, 0.95) !important;
+  }
+
+  .nav-container {
+    padding: 6px 10px !important;
+  }
+  
+  .nav-item {
+    font-size: 15px;
+    padding: 10px 14px;
+    min-height: 46px;
+    border-radius: 8px;
+  }
+
+  .header-container {
+    min-height: 360px;
+    padding-bottom: 28px;
+  }
+
+  .title {
+    font-size: 25px !important;
+    padding: 0 16px;
+    line-height: 1.3;
+  }
+
+  .intro {
+    font-size: 16px !important;
+    margin: 10px 16px !important;
+  }
+
+  .word {
+    font-size: 14.5px !important;
+    padding: 13px 16px !important;
+    margin-top: 16px !important;
+    border-radius: 12px;
+  }
+
+  .music {
+    padding: 14px !important;
+    margin: 16px auto 0 !important;
+    width: calc(100% - 28px) !important;
+  }
+
+  .music-cover {
+    width: 66px !important;
+    height: 66px !important;
+  }
+
+  .music-name {
+    font-size: 16px !important;
+  }
+}
+
+/* ========== 文章列表（更美观） ========== */
+@media (max-width: 768px) {
+  .list-container .item {
+    border-radius: 14px !important;
+    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.08) !important;
+    margin: 14px 0 !important;
+    overflow: hidden;
+  }
+
+  .list-container .item-img {
+    height: 168px !important;
+    padding: 10px 10px 0 !important;
+  }
+
+  .list-container .item-box {
+    padding: 15px 16px 18px !important;
+  }
+
+  .list-container .item-title {
+    font-size: 18.5px !important;
+    line-height: 1.4 !important;
+    font-weight: 600;
+  }
+
+  .list-container .item-content {
+    font-size: 14.5px !important;
+    color: #666;
+    line-height: 1.55 !important;
+  }
+
+  .list-container .item-tag span {
+    font-size: 12.5px !important;
+    padding: 3px 9px !important;
+    border-radius: 12px;
+  }
+}
+
+/* ========== 文章详情页（阅读体验优先） ========== */
+@media (max-width: 992px) {
+  .article-page {
+    padding: 4px 0 70px !important;
+  }
+
+  .article-container {
+    padding: 0 12px !important;
+  }
+
+  .article-content {
+    padding: 20px 16px 24px !important;
+    border-radius: 14px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+  }
+
+  .article-title {
+    font-size: 22px !important;
+    line-height: 1.35 !important;
+    margin: 8px 0 14px !important;
+    font-weight: 700;
+  }
+
+  .article-meta {
+    padding-bottom: 12px !important;
+  }
+
+  .publish-time,
+  .views-count,
+  .tags span {
+    font-size: 13.5px !important;
+  }
+
+  .article-body {
+    font-size: 15.5px !important;
+    line-height: 1.75 !important;
+    color: #333;
+  }
+
+  .article-body pre {
+    font-size: 13px !important;
+    padding: 12px !important;
+    border-radius: 8px !important;
+  }
+
+  .article-body p {
+    margin: 1em 0 !important;
+  }
+
+  .article-body pre {
+    border-radius: 10px !important;
+    padding: 14px !important;
+    font-size: 13px !important;
+    margin: 1.2em 0 !important;
+  }
+
+  .toc-fab {
+    left: 14px !important;
+    padding: 10px 17px !important;
+    font-size: 14.5px !important;
+    border-radius: 20px !important;
+    box-shadow: 0 3px 12px rgba(73, 177, 245, 0.45);
+  }
+}
+
+/* ========== AI 助手（更优雅） ========== */
+@media (max-width: 768px) {
+  .agent-container.is-open {
+    left: 50% !important;
+    top: 80px !important;
+    transform: translateX(-50%);
+  }
+
+  .agent-show {
+    width: calc(100vw - 28px) !important;
+    min-height: 400px !important;
+    max-height: calc(100vh - 110px) !important;
+    padding: 18px 16px 16px !important;
+    border-radius: 18px !important;
+    box-shadow: 0 8px 30px rgba(0, 0, 0, 0.18) !important;
+  }
+
+  .chat-area {
+    min-height: 240px !important;
+    max-height: 340px !important;
+    padding: 10px !important;
+    background-color: #f8fafc !important;
+    border-radius: 12px !important;
+  }
+
+  .default-item {
+    padding: 11px 13px !important;
+    font-size: 14.5px !important;
+    border-radius: 10px !important;
+  }
+
+  .answer-content {
+    font-size: 14.5px !important;
+    padding: 9px 11px !important;
+    line-height: 1.6 !important;
+  }
+
+  .question-input {
+    font-size: 15.5px !important;
+    padding: 12px 14px !important;
+    border-radius: 12px !important;
+  }
+
+  .submit-btn {
+    min-height: 44px !important;
+    padding: 0 18px !important;
+    font-size: 15px !important;
+    border-radius: 12px !important;
+  }
+}
+
+/* ========== 通用美化 ========== */
+@media (max-width: 768px) {
+  .el-tag {
+    font-size: 13px !important;
+    padding: 0 9px !important;
+    height: 28px !important;
+    line-height: 28px !important;
+  }
+
+  .el-pagination .el-pager li,
+  .el-pagination button {
+    min-width: 36px !important;
+    height: 36px !important;
+  }
+}
+
+/* 暗色模式移动端优化 */
+:root.dark .chat-area {
+  background-color: #2a2a2a !important;
+}
+
+:root.dark .article-content {
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+}
