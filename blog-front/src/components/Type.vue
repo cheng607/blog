@@ -1,4 +1,7 @@
 <script setup lang="ts">
+import { ElButton } from 'element-plus'
+import 'element-plus/es/components/button/style/css'
+
 import { ref, onMounted, computed } from 'vue'
 import { useRouter } from 'vue-router';
 import { getTag } from '../api/tag';
@@ -21,14 +24,19 @@ const displayTypeData = computed(() => {
     return top5Data.slice(0, 5)
 })
 
-onMounted(async () => {
+const error = ref('')
+const loading = ref(true)
+const loadTags = async () => {
+    error.value = ''
+    loading.value = true
     try {
         const res = await getTag()
-        typeData.value = res.data
-    } catch (error) {
-        console.error('获取标签', error)
-    }
-})
+        typeData.value = res.data ?? []
+    } catch (e) {
+        error.value = e instanceof Error ? e.message : '加载分类失败'
+    } finally { loading.value = false }
+}
+onMounted(loadTags)
 
 const handleType = (typeId: number) => {
     router.push(`/categoryDetail?typeId=${typeId}`)
@@ -45,15 +53,17 @@ const handelMore = () => {
             <span>分类</span>
         </div>
 
-        <div v-if="typeData.length > 0">
+        <div v-if="error" role="alert">{{ error }} <el-button text @click="loadTags">重试</el-button></div>
+        <div v-else-if="loading">加载中…</div>
+        <div v-else-if="typeData.length > 0">
             <div class="type-list">
+                <!-- 全部标签 -->
+                <div class="type-item all-item" @click="handelMore">
+                    <div class="type-name">全部</div>
+                </div>
                 <div class="type-item" v-for="item in displayTypeData" :key="item.id" @click="handleType(item.id)">
                     <div class="type-name">{{ item.name }}</div>
-                    <div class="type-count">{{ item.count }}</div>
                 </div>
-            </div>
-            <div v-if="typeData.length > 4" class="more-bottom" @click="handelMore">
-                查看更多 >
             </div>
         </div>
 
@@ -109,8 +119,72 @@ const handelMore = () => {
     display: flex;
     flex-direction: column;
     gap: 8px;
-    /* 增加项目之间的间距 */
     margin-top: 10px;
+}
+
+/* 移动端分类 - 参考掘金风格：小巧横向标签 */
+@media (max-width: 768px) {
+  .type-container {
+    padding: 8px 10px !important;
+    box-shadow: none !important;
+    background-color: transparent !important;
+    border: none !important;
+  }
+
+  .type-title {
+    display: none;
+  }
+
+  .type-list {
+    flex-direction: row !important;
+    flex-wrap: nowrap !important;
+    overflow-x: auto !important;
+    gap: 6px !important;
+    padding: 2px 0 8px;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+  }
+
+  .type-list::-webkit-scrollbar {
+    display: none;
+  }
+
+  .type-item {
+    flex-shrink: 0 !important;
+    height: 30px !important;
+    padding: 0 11px !important;
+    font-size: 12.5px !important;
+    border-radius: 15px !important;
+    background-color: #f0f4f8 !important;
+    color: #555 !important;
+    transition: all 0.2s ease;
+  }
+
+  .type-item:hover,
+  .type-item:active {
+    background-color: #e6f0ff !important;
+    color: #49b1f5 !important;
+  }
+
+  .all-item {
+    background-color: #fff7e6 !important;
+    color: #d46b08 !important;
+    font-weight: 500;
+  }
+
+  :root.dark .type-item {
+    background-color: #2d2d2d !important;
+    color: #ddd !important;
+  }
+
+  :root.dark .all-item {
+    background-color: #3a2a1a !important;
+    color: #f0a040 !important;
+  }
+
+  .type-count {
+    display: none;
+  }
 }
 
 .type-item {

@@ -1,4 +1,11 @@
 <script setup lang="ts">
+import { ElButton, ElLoading, ElEmpty } from 'element-plus'
+import 'element-plus/es/components/card/style/css'
+import 'element-plus/es/components/divider/style/css'
+import 'element-plus/es/components/empty/style/css'
+import 'element-plus/es/components/button/style/css'
+import 'element-plus/es/components/loading/style/css'
+const vLoading = ElLoading.directive
 import { ref, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElCard, ElDivider } from 'element-plus'
@@ -18,9 +25,19 @@ const activeCategory = ref<number | null>(null)
 const route = useRoute()
 const router = useRouter()
 
-onMounted(async () => {
-    const res = await getTag()
-    categories.value = res.data
+const loading = ref(true)
+const error = ref('')
+const loadCategories = async () => {
+    loading.value = true
+    error.value = ''
+    try {
+        const res = await getTag()
+        categories.value = res.data ?? []
+    } catch (e) {
+        console.error(e)
+        categories.value = []
+        error.value = e instanceof Error ? e.message : '加载分类失败'
+    } finally { loading.value = false }
 
     const type = route.query.type
     if (type && typeof type === 'string') {
@@ -29,7 +46,8 @@ onMounted(async () => {
             activeCategory.value = matched.id
         }
     }
-})
+}
+onMounted(loadCategories)
 
 // 处理分类点击
 const handleCategoryClick = (id: number) => {
@@ -47,8 +65,10 @@ const handleCategoryClick = (id: number) => {
             <p>探索不同类别的技术文章和教程</p>
         </div>
         <ElDivider />
-        <div class="category-content">
+        <div class="category-content" v-loading="loading">
             <div class="all-categories">
+                <el-empty v-if="error" :description="error"><el-button @click="loadCategories">重试</el-button></el-empty>
+                <el-empty v-else-if="!loading && categories.length === 0" description="暂无分类" />
                 <ElCard v-for="category in categories" :key="category.id" class="category-card"
                     @click="handleCategoryClick(category.id)">
                     <div class="category-card-header">

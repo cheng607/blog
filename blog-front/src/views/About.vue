@@ -1,4 +1,7 @@
 <script setup lang="ts">
+import { ElTimeline, ElTimelineItem } from 'element-plus'
+import 'element-plus/es/components/timeline/style/css'
+import 'element-plus/es/components/timeline-item/style/css'
 import { ref, onMounted } from 'vue'
 interface activity {
     content: string,
@@ -41,7 +44,7 @@ onMounted(() => {
         <div class="timeline">
             <div class="title">个人时间轴</div>
             <el-timeline>
-                <el-timeline-item v-for="(activity, index) in activities" type="primary" size="large" hollow=true
+                <el-timeline-item v-for="(activity, index) in activities" type="primary" size="large" :hollow="true"
                     :key="index" placement="top" :timestamp="activity.timestamp">
                     <span>{{ activity.content }}</span>
                 </el-timeline-item>
@@ -58,6 +61,37 @@ onMounted(() => {
     gap: 50px;
     justify-content: center;
     padding: 30px 0;
+}
+
+/* 移动端垂直布局 */
+@media (max-width: 768px) {
+  .about-page {
+    flex-direction: column !important;
+    gap: 20px !important;
+    padding: 16px 12px !important;
+  }
+
+  .word {
+    width: 100% !important;
+    padding: 20px 16px !important;
+    font-size: 15px !important;
+    border-radius: 16px !important;
+  }
+
+  .timeline {
+    width: 100% !important;
+    padding: 16px !important;
+    border-radius: 16px !important;
+  }
+
+  .timeline .title {
+    font-size: 17px !important;
+    margin: 8px 0 16px !important;
+  }
+
+  .timeline span {
+    font-size: 14px !important;
+  }
 }
 
 .word {

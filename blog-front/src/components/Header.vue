@@ -1,4 +1,5 @@
 <script setup lang="ts">
+
 import { ref, onMounted, onUnmounted } from 'vue'
 import { getMusic, getWord } from '../api/other'
 import Nav from './Nav.vue'
@@ -13,6 +14,11 @@ interface musicItem {
 const word = ref<string>('')
 const music = ref<musicItem>()
 const handleScroll = () => {
+    // 移动端不启用“顶部固定导航”，避免占用屏幕上方空间
+    if (window.innerWidth <= 768) {
+        isScroll.value = false
+        return
+    }
     const currentScrollTop = window.scrollY
     if (currentScrollTop > 100) {
         if (currentScrollTop > lastScrollTop.value) {
@@ -229,8 +235,62 @@ onUnmounted(() => {
 
 .audio-player {
     width: 100%;
+    max-width: 100%;
     background-color: rgba(255, 255, 255, 0.1);
     border-radius: 20px;
     padding: 5px;
+}
+
+@media (max-width: 768px) {
+    .header-container {
+        height: auto;
+        min-height: 420px;
+        padding-bottom: 24px;
+    }
+
+    .title {
+        font-size: 26px;
+        height: auto;
+        white-space: normal;
+        width: auto;
+        border-right: none;
+        animation: none;
+        text-align: center;
+        padding: 0 16px;
+    }
+
+    .intro {
+        font-size: 16px;
+        margin: 12px 16px;
+        text-align: center;
+    }
+
+    .word {
+        font-size: 15px;
+        margin-top: 16px;
+        padding: 12px 16px;
+        line-height: 1.6;
+    }
+
+    .word::before,
+    .word::after {
+        font-size: 28px;
+    }
+
+    .music {
+        flex-direction: column;
+        width: calc(100% - 32px);
+        margin: 16px auto 0;
+        box-sizing: border-box;
+    }
+
+    .music-cover {
+        width: 80px;
+        height: 80px;
+    }
+
+    .music-name {
+        font-size: 16px;
+    }
 }
 </style>
